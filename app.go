@@ -2,24 +2,33 @@ package main
 
 import (
 	"log"
-	"os"
+	"net/http"
 
-	"github.com/tokopedia/chatbot-scheduler/task"
+	config "github.com/tokopedia/chatbot-scheduler/config/chatbot"
+	"github.com/tokopedia/chatbot-scheduler/core"
+	logging "gopkg.in/tokopedia/logging.v1"
 )
 
 func main() {
-	if len(os.Args) == 2 {
-		log.Println("Starting chatbot-scheduler")
-		argument := os.Args[1]
-		if argument == "pic" {
-			task.PopulateData()
-		} else if argument == "new-intent" {
-			task.PopulateIntentName()
-		} else if argument == "dialog-flow-intent" {
-			task.PopulateDialogFlowIntent()
-		}
+	logging.LogInit()
+	config.NewMainConfig()
+	log.Printf("%+v", config.Main)
+
+	taskModule, err := core.NewTaskModule(&config.Main)
+	if err == nil {
+		http.Handle("/files/", http.StripPrefix("/files/", http.FileServer(http.Dir("resources/js"))))
+
+		http.HandleFunc("/populate/data", taskModule.HandlerPopulateData)
+		http.HandleFunc("/populate/intent", taskModule.HandlerPopulateIntent)
+		http.HandleFunc("/populate/dialog-flow-intent", taskModule.HandlerGetDialogFlow)
+		http.HandleFunc("/form", taskModule.HandlerShowForm)
+		http.HandleFunc("/form/ajax_get", taskModule.HandlerGetFormAjax)
+		http.HandleFunc("/form/ajax_post", taskModule.HandlerPostFormAjax)
+		http.HandleFunc("/form/data", taskModule.HandlerFormDatatables)
+
+		log.Println("Starting the application...")
+		http.ListenAndServe(":8787", nil)
 	} else {
-		log.Println("chatbot-scheduler doesn't start!!")
-		log.Println("please check argument...")
+		log.Println("Failed to run the app...")
 	}
 }
