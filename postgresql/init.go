@@ -46,7 +46,6 @@ func (c *Connection) ExecuteQueryInt(query string, result *int) error {
 func (c *Connection) Execute(query string, data ...string) (sql.Result, error) {
 	stmt, err := c.db.Prepare(query)
 	if err != nil {
-		log.Println("Preparing")
 		log.Println(err)
 		return nil, err
 	}

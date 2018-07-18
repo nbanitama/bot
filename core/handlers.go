@@ -15,18 +15,19 @@ type Page struct {
 }
 
 type ChatbotLog struct {
-	DateTimestamp  string `json:"date_timestamp"`
-	FromUid        string `json:"from_uid"`
-	IntentName     string `json:"intent_name"`
-	ChatfromUser   string `json:"chat_from_user"`
-	Score          string `json:"score"`
-	ChatfromBot    string `json:"chat_from_bot"`
-	UserSays       string `json:"user_says"`
-	ActualIntent   string `json:"actual_intent"`
-	Status         int    `json:"status"`
-	IsAdditionToDF bool   `json:"addition_to_df"`
-	PIC            string `json:"pic"`
-	HashId         string `json:"hash_id"`
+	DateTimestamp      string `json:"date_timestamp"`
+	FromUid            string `json:"from_uid"`
+	IntentName         string `json:"intent_name"`
+	ChatfromUser       string `json:"chat_from_user"`
+	Score              string `json:"score"`
+	ChatfromBot        string `json:"chat_from_bot"`
+	UserSays           string `json:"user_says"`
+	ActualIntent       string `json:"actual_intent"`
+	Status             int    `json:"status"`
+	IsAdditionToDF     bool   `json:"addition_to_df"`
+	PIC                string `json:"pic"`
+	HashId             string `json:"hash_id"`
+	SuggestedNewIntent string `json:"suggested_new_intent"`
 }
 
 type AjaxForm struct {
@@ -39,6 +40,16 @@ type AjaxForm struct {
 
 type Response struct {
 	ResponseCode string `json:"response_status"`
+}
+
+type IntentData struct {
+	Id   string `json:"id"`
+	Text string `json:"text"`
+}
+
+type IntentSelect struct {
+	Results    []IntentData `json:"results"`
+	TotalCount int          `json:"total_count"`
 }
 
 func (c *TaskModule) HandlerPopulateData(w http.ResponseWriter, r *http.Request) {
@@ -149,6 +160,24 @@ func (c *TaskModule) HandlerPostFormAjax(w http.ResponseWriter, r *http.Request)
 	w.Write(response)
 }
 
+func (c *TaskModule) HandlerGetIntentAjax(w http.ResponseWriter, r *http.Request) {
+	log.Println("handling getting form ajax")
+
+	queryValues := r.URL.Query()
+
+	search := queryValues.Get("term")
+
+	data, length, err := getIntentList(search)
+
+	resp := IntentSelect{data, length}
+	response, err := json.Marshal(resp)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	w.Write(response)
+}
+
 func postData(data *ChatbotLog) (sql.Result, error) {
 	query := "update topbot_ops_chat_log " +
 		"set an_user_says = $1, an_actual_intent_name=$2, an_new_intent_name = $3, an_status = $4, an_add_to_df = $5 " +
@@ -179,13 +208,60 @@ func getCount(name string, isFiltered bool) (int, error) {
 	return result, nil
 }
 
+func getIntentCount(search string) (int, error) {
+	query := "SELECT count(1) FROM topbot_intent_list where lower(intent_name) like '%" + search + "%' "
+
+	var result int
+	err = postgresConnection.ExecuteQueryInt(query, &result)
+	if err != nil {
+		log.Println(err)
+		return 0, err
+	}
+	return result, nil
+}
+
+func getIntentList(search string) ([]IntentData, int, error) {
+	length, err := getIntentCount(search)
+	if err != nil {
+		log.Println(err)
+		return make([]IntentData, 0), 0, err
+	}
+	intents := make([]IntentData, length)
+	query := "SELECT intent_name, intent_name FROM topbot_intent_list where lower(intent_name) like '%" + search + "%'"
+
+	rows, err := postgresConnection.ExecuteQuery(query)
+
+	if err != nil {
+		log.Println("Error occurred when querying db")
+		return nil, 0, err
+	} else {
+		defer rows.Close()
+	}
+
+	i := 0
+	for rows.Next() {
+		c := IntentData{}
+		err := rows.Scan(&c.Id, &c.Text)
+
+		if err != nil {
+			log.Println(err)
+			return nil, 0, err
+		}
+
+		intents[i] = c
+		i++
+	}
+
+	return intents, length, nil
+}
+
 func getList(search string, startStr string, lengthStr string) ([]ChatbotLog, error) {
 	length, _ := strconv.Atoi(lengthStr)
 	dataList := make([]ChatbotLog, length)
 
 	query := "SELECT hash_id, from_uid, intent_name, score, resolved_query, coalesce(parsed_message, ''), coalesce(an_user_says, '')," +
-		"coalesce(an_actual_intent_name, ''), coalesce(an_status, 1), coalesce(an_add_to_df, true), coalesce(an_pic, '') FROM topbot_ops_chat_log " +
-		"WHERE intent_name LIKE '%" + search + "%'" +
+		"coalesce(an_actual_intent_name, ''), coalesce(an_status, 1), coalesce(an_add_to_df, true), coalesce(an_pic, ''), coalesce(an_new_intent_name,''), coalesce(bot_timestamp,'') FROM topbot_ops_chat_log " +
+		"WHERE intent_name LIKE '%" + search + "%' ORDER BY bot_timestamp ASC, from_uid ASC " +
 		"LIMIT " + lengthStr + " OFFSET " + startStr
 	rows, err := postgresConnection.ExecuteQuery(query)
 
@@ -200,7 +276,7 @@ func getList(search string, startStr string, lengthStr string) ([]ChatbotLog, er
 	for rows.Next() {
 		c := ChatbotLog{}
 		err := rows.Scan(&c.HashId, &c.FromUid, &c.IntentName, &c.Score, &c.ChatfromUser, &c.ChatfromBot,
-			&c.UserSays, &c.ActualIntent, &c.Status, &c.IsAdditionToDF, &c.PIC)
+			&c.UserSays, &c.ActualIntent, &c.Status, &c.IsAdditionToDF, &c.PIC, &c.SuggestedNewIntent, &c.DateTimestamp)
 
 		if err != nil {
 			return nil, err

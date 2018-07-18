@@ -16,7 +16,8 @@ func main() {
 
 	taskModule, err := core.NewTaskModule(&config.Main)
 	if err == nil {
-		http.Handle("/files/", http.StripPrefix("/files/", http.FileServer(http.Dir("resources/js"))))
+		http.Handle("/files/js/", http.StripPrefix("/files/js/", http.FileServer(http.Dir("resources/js"))))
+		http.Handle("/files/css/", http.StripPrefix("/files/css/", http.FileServer(http.Dir("resources/css"))))
 
 		http.HandleFunc("/populate/data", taskModule.HandlerPopulateData)
 		http.HandleFunc("/populate/intent", taskModule.HandlerPopulateIntent)
@@ -25,6 +26,7 @@ func main() {
 		http.HandleFunc("/form/ajax_get", taskModule.HandlerGetFormAjax)
 		http.HandleFunc("/form/ajax_post", taskModule.HandlerPostFormAjax)
 		http.HandleFunc("/form/data", taskModule.HandlerFormDatatables)
+		http.HandleFunc("/form/intent/ajax", taskModule.HandlerGetIntentAjax)
 
 		log.Println("Starting the application...")
 		http.ListenAndServe(":8787", nil)
