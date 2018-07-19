@@ -20,7 +20,7 @@ function updateSelectCell(element) {
         sendData(data, table);
     } else {
         console.log("drawing")
-        table.draw();
+        reloadDatatable(table)
     }
 }
 
@@ -28,9 +28,12 @@ function updateEditableCell(element) {
     var newValue = $(element).val()
     var table = $(element).closest("table").DataTable().table();
     var row = table.row($(element).parents('tr'));
-    //console.log(row.data());
+    console.log("row " + row.data());
     //console.log(element.val());
     isEditable = true; 
+    if(row.data() === undefined){
+        return
+    }
     
     var isSend = true;
     var data = {
@@ -47,22 +50,12 @@ function updateEditableCell(element) {
         } else {
             data.user_says = newValue;
         }
-    } else if(type == 7) {
-        if( newValue === row.data().actual_intent)
-            isSend = false;
-        else
-            data.actual_intent = newValue;
-    } else if(type == 8) {
-        if(newValue === row.data().suggested_new_intent)
-            isSend = false;
-        else
-            data.suggested_new_intent = newValue;
     } 
 
     if(isSend){
         sendData(data, table);
     } else{
-        table.draw();
+        reloadDatatable(table)
     }
 }
 
@@ -82,11 +75,10 @@ function sendData(data, table) {
             console.log( errorThrown );
         }
     });
-    console.log(data)
 }
 
 function reloadDatatable(datatable) {
-    datatable.ajax.reload();
+    datatable.ajax.reload(null, false);
 }
     
 $(function () {
@@ -152,7 +144,8 @@ $(function () {
                 if (columnIndex == 6) {
                     oldData = data.user_says;
                     type = 6;
-                    html = "<textarea class='editable' onblur='updateEditableCell($(this))' value='" + oldData + "'width: 100%; height: 100%></textarea>"
+                    console.log("old data : " + oldData)
+                    html = "<textarea class='editable' onblur='updateEditableCell($(this))' width: 100%; height: 100%>"+oldData+"</textarea>"
                     $(cell).html(html);
                     $('.editable').focus();
                 } else if(columnIndex == 7) {
@@ -164,7 +157,6 @@ $(function () {
                         ajax: {
                             url: '/form/intent/ajax',
                             dataType: 'json'
-                            // Additional AJAX parameters go here; see the end of this chapter for the full code of this example
                         },
                         width: 'resolve',
                         minimumInputLength: 3,
@@ -175,19 +167,10 @@ $(function () {
                         updateSelectCell($(this))
                      });
                      $('.intent').select2('open');
-                     /*$(".intent").val(oldData).trigger("change.select2")
-                    console.log("intent : " + oldData)*/
                 } else if(columnIndex == 8) {
-                    oldData = data.status;
+                    oldData = data.suggested_new_intent;
                     type = 8;
-                } else if(columnIndex == 9) {
-                    oldData = data.addition_to_df;
-                    type = 9;
-                }
-  //              alert("open input")
-
-                
-                
+                } 
                 
                 isEditable = false;
             }
