@@ -3,7 +3,6 @@ var isEditable  = true;
 var type;
 
 function updateSelectCell(element) {
-    console.log("select!!")
     isEditable = true;
     var newValue = $(element).val()
     var table = $(element).closest("table").DataTable().table();
@@ -20,7 +19,6 @@ function updateSelectCell(element) {
             data.actual_intent = newValue
             sendData(data, table);
         } else {
-            console.log("drawing")
             reloadDatatable(table)
         }
     } else if(type === 8){
@@ -28,7 +26,6 @@ function updateSelectCell(element) {
             data.suggested_new_intent = newValue
             sendData(data, table);
         } else {
-            console.log("drawing 3")
             reloadDatatable(table)
         }
     }
@@ -38,8 +35,6 @@ function updateEditableCell(element) {
     var newValue = $(element).val()
     var table = $(element).closest("table").DataTable().table();
     var row = table.row($(element).parents('tr'));
-    console.log("row " + row.data());
-    //console.log(element.val());
     isEditable = true; 
     if(row.data() === undefined){
         return
@@ -52,7 +47,6 @@ function updateEditableCell(element) {
         actual_intent: row.data().actual_intent,
         suggested_new_intent: row.data().suggested_new_intent
     }
-    console.log("new data : " + newValue)
     if(type == 6) {
         if(newValue === row.data().user_says){
             isSend = false;
@@ -77,7 +71,6 @@ function sendData(data, table) {
         data: JSON.stringify( data ),
         processData: false,
         success: function( data, textStatus, jQxhr ){
-            //$('#response pre').html( JSON.stringify( data ) );
             reloadDatatable(table)
         },
         error: function( jqXhr, textStatus, errorThrown ){
@@ -135,20 +128,12 @@ $(function () {
                 "targets": [-6, -7, -8]
             }]
     });
-/*
-    $('#user_table tbody').on( 'click', 'button', function () {
-        var data = table.row( $(this).parents('tr') ).data();
-        alert( data.pic +"'s hashid is: "+ data.hash_id );
-    } );*/
-
 
     $("#user_table tbody").on("click", "td", function() {
         var data = table.row( $(this).parents('tr') ).data();
-        //alert( data.pic +"'s hashid is: "+ data.hash_id );
-
+        console.log(data)
         var columnIndex = table.cell( this ).index().column;
         if(columnIndex > 5 && columnIndex < 9 && isEditable){
-//            alert( 'Clicked on cell in visible column: '+columnIndex);
             var cell = table.cell(this).node();
             var oldData;
             if(!$(cell).find("input").length){
@@ -156,7 +141,6 @@ $(function () {
                 if (columnIndex == 6) {
                     oldData = data.user_says;
                     type = 6;
-                    console.log("old data : " + oldData)
                     html = "<textarea class='editable' onblur='updateEditableCell($(this))' width: 100%; height: 100%>"+oldData+"</textarea>"
                     $(cell).html(html);
                     $('.editable').focus();
@@ -198,35 +182,14 @@ $(function () {
 
                     $(".suggest-intent").on("select2:close", function () { 
                         updateSelectCell($(this))
-                        console.log("open!!!!")
                      });
                      $('.suggest-intent').select2('open');
                 } 
                 
                 isEditable = false;
             }
-            //reloadDatatable();
         }
     })
-
-/*    var intervalId = setInterval(function(){ 
-        $.ajax({
-            url: "/visitor_count", 
-            dataType: "json",
-            success: handleResponse,
-            error: handleErrorResponse
-        }); 
-    }, 2000);
-
-    function handleResponse(data) {
-        $("#visitor_count").text("Visitor Count : " + data.visitor_count)
-    }
-
-    function handleErrorResponse(request, status, error){
-        console.log(error)
-        console.log("visitor counter doesn't work!!!")
-        clearInterval(intervalId)
-    }*/
     
 });
 

@@ -91,13 +91,6 @@ func (c *TaskModule) HandlerFormDatatables(w http.ResponseWriter, r *http.Reques
 	lengthStr := queryValues.Get("length")
 	search := queryValues.Get("search[value]")
 
-	dataList, err := getList(search, startStr, lengthStr)
-
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
 	var isFilter bool
 	if search == "" {
 		isFilter = false
@@ -115,6 +108,21 @@ func (c *TaskModule) HandlerFormDatatables(w http.ResponseWriter, r *http.Reques
 	totalFilteredRecord, err := getCount(search, isFilter)
 	if err != nil {
 		log.Fatal(err)
+		return
+	}
+	length, _ := strconv.Atoi(lengthStr)
+	start, _ := strconv.Atoi(startStr)
+	var dataList []ChatbotLog
+	if totalFilteredRecord-start < length {
+		diff := (totalFilteredRecord - start)
+		diffStr := strconv.Itoa(diff)
+		dataList, err = getList(search, startStr, diffStr)
+	} else {
+		dataList, err = getList(search, startStr, lengthStr)
+	}
+
+	if err != nil {
+		log.Println(err)
 		return
 	}
 
@@ -338,6 +346,18 @@ func getIntentList(search string) ([]IntentData, int, error) {
 
 func getList(search string, startStr string, lengthStr string) ([]ChatbotLog, error) {
 	length, _ := strconv.Atoi(lengthStr)
+
+	/*	query := "SELECT count(1) FROM topbot_ops_chat_log " +
+			"WHERE intent_name LIKE '%" + search + "%' ORDER BY bot_timestamp ASC, from_uid ASC " +
+			"LIMIT " + lengthStr + " OFFSET " + startStr
+
+		var length int
+		err = postgresConnection.ExecuteQueryInt(query, &length)
+		if err != nil {
+			log.Println(err)
+			return nil, err
+		}*/
+
 	dataList := make([]ChatbotLog, length)
 
 	query := "SELECT hash_id, from_uid, intent_name, score, resolved_query, coalesce(parsed_message, ''), coalesce(an_user_says, '')," +
