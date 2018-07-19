@@ -143,6 +143,8 @@ func (c *TaskModule) HandlerPostFormAjax(w http.ResponseWriter, r *http.Request)
 
 	_, err = postData(&payload)
 
+	_, err = addSuggestIntentData(&payload)
+
 	var respCode string
 	if err != nil {
 		log.Println(err)
@@ -161,7 +163,7 @@ func (c *TaskModule) HandlerPostFormAjax(w http.ResponseWriter, r *http.Request)
 }
 
 func (c *TaskModule) HandlerGetIntentAjax(w http.ResponseWriter, r *http.Request) {
-	log.Println("handling getting form ajax")
+	log.Println("handling getting intent ajax")
 
 	queryValues := r.URL.Query()
 
@@ -178,10 +180,28 @@ func (c *TaskModule) HandlerGetIntentAjax(w http.ResponseWriter, r *http.Request
 	w.Write(response)
 }
 
+func (c *TaskModule) HandlerGetSuggestIntentAjax(w http.ResponseWriter, r *http.Request) {
+	log.Println("handling getting suggest-intent ajax")
+
+	queryValues := r.URL.Query()
+
+	search := queryValues.Get("term")
+
+	data, length, err := getSuggestIntentList(search)
+
+	resp := IntentSelect{data, length}
+	response, err := json.Marshal(resp)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	w.Write(response)
+}
+
 func postData(data *ChatbotLog) (sql.Result, error) {
 	query := "update topbot_ops_chat_log " +
-		"set an_user_says = $1, an_actual_intent_name=$2, an_new_intent_name = $3, an_status = $4, an_add_to_df = $5 " +
-		"where hash_id = $6"
+		"set an_user_says = $1, an_actual_intent_name=$2, an_new_intent_name = $3 " +
+		"where hash_id = $4"
 
 	db := postgresConnection.GetConnection()
 
@@ -190,7 +210,21 @@ func postData(data *ChatbotLog) (sql.Result, error) {
 		log.Println(err)
 		return nil, err
 	}
-	return stmt.Exec(data.UserSays, data.ActualIntent, data.IntentName, data.Status, data.IsAdditionToDF, data.HashId)
+	return stmt.Exec(data.UserSays, data.ActualIntent, data.SuggestedNewIntent, data.HashId)
+}
+
+func addSuggestIntentData(data *ChatbotLog) (sql.Result, error) {
+	query := "INSERT INTO topbot_suggested_intent_list(created_time, updated_time, suggested_intent_name) VALUES (now(), now(), $1)"
+
+	db := postgresConnection.GetConnection()
+
+	stmt, err := db.Prepare(query)
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+	log.Println(data.SuggestedNewIntent)
+	return stmt.Exec(data.SuggestedNewIntent)
 }
 
 func getCount(name string, isFiltered bool) (int, error) {
@@ -218,6 +252,53 @@ func getIntentCount(search string) (int, error) {
 		return 0, err
 	}
 	return result, nil
+}
+
+func getSuggestIntentCount(search string) (int, error) {
+	query := "SELECT count(1) FROM topbot_suggested_intent_list where lower(suggested_intent_name) like '%" + search + "%' "
+
+	var result int
+	err = postgresConnection.ExecuteQueryInt(query, &result)
+	if err != nil {
+		log.Println(err)
+		return 0, err
+	}
+	return result, nil
+}
+
+func getSuggestIntentList(search string) ([]IntentData, int, error) {
+	length, err := getSuggestIntentCount(search)
+	if err != nil {
+		log.Println(err)
+		return make([]IntentData, 0), 0, err
+	}
+	intents := make([]IntentData, length)
+	query := "SELECT suggested_intent_name, suggested_intent_name FROM topbot_suggested_intent_list where lower(suggested_intent_name) like '%" + search + "%'"
+
+	rows, err := postgresConnection.ExecuteQuery(query)
+
+	if err != nil {
+		log.Println("Error occurred when querying db")
+		return nil, 0, err
+	} else {
+		defer rows.Close()
+	}
+
+	i := 0
+	for rows.Next() {
+		c := IntentData{}
+		err := rows.Scan(&c.Id, &c.Text)
+
+		if err != nil {
+			log.Println(err)
+			return nil, 0, err
+		}
+
+		intents[i] = c
+		i++
+	}
+
+	return intents, length, nil
 }
 
 func getIntentList(search string) ([]IntentData, int, error) {

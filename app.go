@@ -27,6 +27,7 @@ func main() {
 		http.HandleFunc("/form/ajax_post", taskModule.HandlerPostFormAjax)
 		http.HandleFunc("/form/data", taskModule.HandlerFormDatatables)
 		http.HandleFunc("/form/intent/ajax", taskModule.HandlerGetIntentAjax)
+		http.HandleFunc("/form/suggest_intent/ajax", taskModule.HandlerGetSuggestIntentAjax)
 
 		log.Println("Starting the application...")
 		http.ListenAndServe(":8787", nil)

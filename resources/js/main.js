@@ -12,15 +12,25 @@ function updateSelectCell(element) {
         hash_id: row.data().hash_id, 
         user_says: row.data().user_says,
         actual_intent: row.data().actual_intent,
-        status: row.data().status,
-        addition_to_df: row.data().addition_to_df,
+        suggested_new_intent: row.data().suggested_new_intent
     }
-    if(newValue !== row.data().actual_intent){
-        data.actual_intent = newValue
-        sendData(data, table);
-    } else {
-        console.log("drawing")
-        reloadDatatable(table)
+
+    if(type === 7){
+        if(newValue !== row.data().actual_intent){
+            data.actual_intent = newValue
+            sendData(data, table);
+        } else {
+            console.log("drawing")
+            reloadDatatable(table)
+        }
+    } else if(type === 8){
+        if(newValue !== row.data().suggested_new_intent){
+            data.suggested_new_intent = newValue
+            sendData(data, table);
+        } else {
+            console.log("drawing 3")
+            reloadDatatable(table)
+        }
     }
 }
 
@@ -40,8 +50,7 @@ function updateEditableCell(element) {
         hash_id: row.data().hash_id, 
         user_says: row.data().user_says,
         actual_intent: row.data().actual_intent,
-        status: row.data().status,
-        addition_to_df: row.data().addition_to_df,
+        suggested_new_intent: row.data().suggested_new_intent
     }
     console.log("new data : " + newValue)
     if(type == 6) {
@@ -79,6 +88,9 @@ function sendData(data, table) {
 
 function reloadDatatable(datatable) {
     datatable.ajax.reload(null, false);
+    isEditable  = true;
+    type = 0;
+
 }
     
 $(function () {
@@ -170,6 +182,25 @@ $(function () {
                 } else if(columnIndex == 8) {
                     oldData = data.suggested_new_intent;
                     type = 8;
+
+                    html = "<select class='suggest-intent' style='width: 100%'><option value='"+oldData+"' selected='selected'>"+oldData+"</option></select>"
+                    $(cell).html(html);
+                    $('.suggest-intent').select2({
+                        ajax: {
+                            url: '/form/suggest_intent/ajax',
+                            dataType: 'json'
+                        },
+                        width: 'resolve',
+                        minimumInputLength: 3,
+                        placeholder: "please choose or input..",
+                        tags: true
+                    });
+
+                    $(".suggest-intent").on("select2:close", function () { 
+                        updateSelectCell($(this))
+                        console.log("open!!!!")
+                     });
+                     $('.suggest-intent').select2('open');
                 } 
                 
                 isEditable = false;
