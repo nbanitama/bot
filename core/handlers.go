@@ -235,10 +235,10 @@ func addSuggestIntentData(data *ChatbotLog) (sql.Result, error) {
 	return stmt.Exec(data.SuggestedNewIntent)
 }
 
-func getCount(name string, isFiltered bool) (int, error) {
+func getCount(search string, isFiltered bool) (int, error) {
 	query := "SELECT count(1) FROM topbot_ops_chat_log "
 	if isFiltered {
-		query += "where intent_name like '%" + name + "%' "
+		query += "where lower(intent_name) like '%" + search + "%' or lower(resolved_query) LIKE '%" + search + "%' or lower(coalesce(parsed_message, '')) LIKE '%" + search + "%'"
 	}
 
 	var result int
@@ -347,22 +347,11 @@ func getIntentList(search string) ([]IntentData, int, error) {
 func getList(search string, startStr string, lengthStr string) ([]ChatbotLog, error) {
 	length, _ := strconv.Atoi(lengthStr)
 
-	/*	query := "SELECT count(1) FROM topbot_ops_chat_log " +
-			"WHERE intent_name LIKE '%" + search + "%' ORDER BY bot_timestamp ASC, from_uid ASC " +
-			"LIMIT " + lengthStr + " OFFSET " + startStr
-
-		var length int
-		err = postgresConnection.ExecuteQueryInt(query, &length)
-		if err != nil {
-			log.Println(err)
-			return nil, err
-		}*/
-
 	dataList := make([]ChatbotLog, length)
 
 	query := "SELECT hash_id, from_uid, intent_name, score, resolved_query, coalesce(parsed_message, ''), coalesce(an_user_says, '')," +
 		"coalesce(an_actual_intent_name, ''), coalesce(an_status, 1), coalesce(an_add_to_df, true), coalesce(an_pic, ''), coalesce(an_new_intent_name,''), coalesce(bot_timestamp,'') FROM topbot_ops_chat_log " +
-		"WHERE intent_name LIKE '%" + search + "%' ORDER BY bot_timestamp ASC, from_uid ASC " +
+		"WHERE lower(intent_name) LIKE '%" + search + "%' or lower(resolved_query) LIKE '%" + search + "%' or lower(coalesce(parsed_message, '')) LIKE '%" + search + "%' ORDER BY bot_timestamp ASC, from_uid ASC " +
 		"LIMIT " + lengthStr + " OFFSET " + startStr
 	rows, err := postgresConnection.ExecuteQuery(query)
 
