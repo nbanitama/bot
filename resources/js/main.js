@@ -91,7 +91,7 @@ $(function () {
         "info": true,
         "processing": true,
         "serverSide": true,
-        "ordering": false,
+        "ordering": true,
         "ajax": "/form/data",
         "scrollX": true,
         "scrollY": 700,

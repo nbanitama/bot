@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 )
 
 type Page struct {
@@ -89,7 +90,10 @@ func (c *TaskModule) HandlerFormDatatables(w http.ResponseWriter, r *http.Reques
 	draw, _ := strconv.Atoi(drawStr)
 	startStr := queryValues.Get("start")
 	lengthStr := queryValues.Get("length")
-	search := queryValues.Get("search[value]")
+	search := strings.Replace(strings.ToLower(queryValues.Get("search[value]")), "_", "\\_", -1)
+	columnStr := queryValues.Get("order[0][column]")
+	column, _ := strconv.Atoi(columnStr)
+	orderStr := queryValues.Get("order[0][dir]")
 
 	var isFilter bool
 	if search == "" {
@@ -116,9 +120,9 @@ func (c *TaskModule) HandlerFormDatatables(w http.ResponseWriter, r *http.Reques
 	if totalFilteredRecord-start < length {
 		diff := (totalFilteredRecord - start)
 		diffStr := strconv.Itoa(diff)
-		dataList, err = getList(search, startStr, diffStr)
+		dataList, err = getList(search, startStr, diffStr, column, orderStr)
 	} else {
-		dataList, err = getList(search, startStr, lengthStr)
+		dataList, err = getList(search, startStr, lengthStr, column, orderStr)
 	}
 
 	if err != nil {
@@ -238,7 +242,7 @@ func addSuggestIntentData(data *ChatbotLog) (sql.Result, error) {
 func getCount(search string, isFiltered bool) (int, error) {
 	query := "SELECT count(1) FROM topbot_ops_chat_log "
 	if isFiltered {
-		query += "where lower(intent_name) like '%" + search + "%' or lower(resolved_query) LIKE '%" + search + "%' or lower(coalesce(parsed_message, '')) LIKE '%" + search + "%'"
+		query += "where lower(intent_name) like '%" + search + "%' or lower(resolved_query) LIKE '%" + search + "%' or lower(coalesce(parsed_message, '')) LIKE '%" + search + "%' or lower(coalesce(an_pic, '')) LIKE '%" + search + "%' or lower(from_uid) LIKE '%" + search + "%'"
 	}
 
 	var result int
@@ -344,15 +348,45 @@ func getIntentList(search string) ([]IntentData, int, error) {
 	return intents, length, nil
 }
 
-func getList(search string, startStr string, lengthStr string) ([]ChatbotLog, error) {
+func getList(search string, startStr string, lengthStr string, column int, order string) ([]ChatbotLog, error) {
 	length, _ := strconv.Atoi(lengthStr)
 
 	dataList := make([]ChatbotLog, length)
 
 	query := "SELECT hash_id, from_uid, intent_name, score, resolved_query, coalesce(parsed_message, ''), coalesce(an_user_says, '')," +
 		"coalesce(an_actual_intent_name, ''), coalesce(an_status, 1), coalesce(an_add_to_df, true), coalesce(an_pic, ''), coalesce(an_new_intent_name,''), coalesce(bot_timestamp,'') FROM topbot_ops_chat_log " +
-		"WHERE lower(intent_name) LIKE '%" + search + "%' or lower(resolved_query) LIKE '%" + search + "%' or lower(coalesce(parsed_message, '')) LIKE '%" + search + "%' ORDER BY bot_timestamp ASC, from_uid ASC " +
-		"LIMIT " + lengthStr + " OFFSET " + startStr
+		"WHERE lower(intent_name) LIKE '%" + search + "%' or lower(resolved_query) LIKE '%" + search + "%' or lower(coalesce(parsed_message, '')) LIKE '%" + search + "%' or lower(coalesce(an_pic, '')) LIKE '%" + search + "%' or lower(from_uid) LIKE '%" + search + "%'" +
+		"ORDER BY "
+
+	if column == 0 {
+		query += " bot_timestamp "
+	} else if column == 1 {
+		query += " from_uid "
+	} else if column == 2 {
+		query += " intent_name "
+	} else if column == 3 {
+		query += " resolved_query "
+	} else if column == 4 {
+		query += " score "
+	} else if column == 5 {
+		query += " parsed_message "
+	} else if column == 6 {
+		query += " an_user_says "
+	} else if column == 7 {
+		query += " an_actual_intent_name "
+	} else if column == 8 {
+		query += " an_new_intent_name "
+	} else if column == 9 {
+		query += " an_status "
+	} else if column == 10 {
+		query += " an_add_to_df "
+	} else if column == 11 {
+		query += " an_pic "
+	}
+
+	query += " " + order + " LIMIT " + lengthStr + " OFFSET " + startStr
+
+	log.Println("query : " + query)
 	rows, err := postgresConnection.ExecuteQuery(query)
 
 	if err != nil {
