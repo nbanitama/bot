@@ -1,9 +1,8 @@
-var isEditable  = true;
+var isEditable  = 0;
 
 var type;
 
 function updateSelectCell(element) {
-    isEditable = true;
     var newValue = $(element).val()
     var table = $(element).closest("table").DataTable().table();
     var row = table.row($(element).parents('tr'));
@@ -29,13 +28,13 @@ function updateSelectCell(element) {
             reloadDatatable(table)
         }
     }
+    isEditable = 2;
 }
 
 function updateEditableCell(element) {
     var newValue = $(element).val()
     var table = $(element).closest("table").DataTable().table();
     var row = table.row($(element).parents('tr'));
-    isEditable = true; 
     if(row.data() === undefined){
         return
     }
@@ -60,6 +59,7 @@ function updateEditableCell(element) {
     } else{
         reloadDatatable(table)
     }
+    isEditable = 2; 
 }
 
 function sendData(data, table) {
@@ -81,7 +81,7 @@ function sendData(data, table) {
 
 function reloadDatatable(datatable) {
     datatable.ajax.reload(null, false);
-    isEditable  = true;
+    isEditable  = 0;
     type = 0;
 
 }
@@ -96,7 +96,7 @@ $(function () {
         "scrollX": true,
         "scrollY": 700,
         "drawCallback": function(settings) {
-            isEditable = true; 
+            isEditable = 0; 
          },
         "columns": [
             { data: 'date_timestamp' },
@@ -130,13 +130,13 @@ $(function () {
     });
 
     $("#user_table tbody").on("click", "td", function() {
+        
         var data = table.row( $(this).parents('tr') ).data();
-        console.log(data)
         var columnIndex = table.cell( this ).index().column;
-        if(columnIndex > 5 && columnIndex < 9 && isEditable){
+        if(columnIndex > 5 && columnIndex < 9 && (isEditable == 3 || isEditable == 0)){
             var cell = table.cell(this).node();
             var oldData;
-            if(!$(cell).find("input").length){
+            if(!$(cell).find("textarea").length && !$(cell).find("select").length){
                 var html;
                 if (columnIndex == 6) {
                     oldData = data.user_says;
@@ -158,11 +158,10 @@ $(function () {
                         minimumInputLength: 3,
                         placeholder: "please choose.."
                     });
-
+                    $('.intent').select2('open');
                     $(".intent").on("select2:close", function () { 
                         updateSelectCell($(this))
                      });
-                     $('.intent').select2('open');
                 } else if(columnIndex == 8) {
                     oldData = data.suggested_new_intent;
                     type = 8;
@@ -186,8 +185,10 @@ $(function () {
                      $('.suggest-intent').select2('open');
                 } 
                 
-                isEditable = false;
+                isEditable = 1;
             }
+        } else {
+            isEditable = 3;
         }
     })
     
